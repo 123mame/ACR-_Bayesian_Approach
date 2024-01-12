@@ -1,0 +1,233 @@
+---
+title: "Discriptive and Classical Model Approch"
+author: "Kemal .S"
+date: "2023-06-07"
+output: html_document
+---
+
+```{r setup, include=FALSE,warning=FALSE, message=FALSE }
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(knitr)
+library(car)
+library(kableExtra)
+library(rethinking)
+library(dagitty)
+library(ggdag)
+library(patchwork)
+library(rjags)
+library(table1)
+library (boot)
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(rigr)
+library(broom)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, message=FALSE,error=FALSE}
+### Reading in example data. 
+# Note: You will likely need to modify this command depending on your local file structure.
+df<- read_csv("C:\\Users\\kemalo\\Downloads\\ACR data.csv")
+
+```
+
+
+```{r}
+# Descriptive statistics
+# we're interested in
+df$Gendercode<-as.factor(df$Gendercode)
+df$Hypertension<-as.factor(df$Hypertension)
+df$Diabetes<-as.factor(df$Diabetes)
+df$smoking<-as.factor(df$smoking)
+df$RIDRETH1<-as.factor(df$RIDRETH1)
+
+df$RIDRETH1 <- factor(df$RIDRETH1, 
+                   levels=c("1","2","3","4","5"),
+                   labels=c("Mexican American ","Other Hispanic ","Non-Hispanic White","Non-Hispanic Black","Other"))
+
+label(df$smoking)<-"Smoker"
+df$smoking<-factor(df$smoking, 
+                   levels=c("1","2","3"),
+                   labels=c("Current","Former","Never"))
+
+
+label(df$URXUMS)<-"Albumin(a) (mg/l) "
+label(df$URXUCR)<-"Creatinine(a)  (mg/dl)"
+label(df$URDACT)<-"Albumin creatinine ratio(a) (mg/g)"
+df$Gendercode <-factor(df$Gendercode, 
+                     levels=c("0","1"),
+                     labels=c("Female","Male"))
+df$Diabetes <-factor(df$Diabetes, 
+                     levels=c("0","1"),
+                     labels=c("No","Yes"))
+df$Hypertension <-factor(df$Hypertension, 
+                     levels=c("0","1"),
+                     labels=c("No","Yes"))
+
+label(df$Gendercode)<- "Gender (n, %)"
+label(df$RIDAGEYR)<-"Age (years)"
+label(df$RIDRETH1)<-"Race (n, %)"
+label(df$smoking)<-"Smoker(n, %)"
+label(df$Hypertension)<-"History of hypertension (n, %)"
+label(df$Diabetes)<-"History of diabetes (n, %)"
+label(df$DXXOFBMD)<-"Total femur BMD(g/cm2)"
+label(df$DXXNKBMD)<-"Femoral neck BMD (g/cm2)"
+label(df$LSBMD)<-"Lumbar spine BMD  (g/cm2)"
+label(df$BMXWT)<-"Weight (kg)"
+label(df$BMXHT)<-"Height (cm)"
+label(df$BMXBMI)<-"Body mass index (kg/m2)"
+caption  <- "Table 1 Baseline characteristics of the study population (N=2007)"
+footnote <- "(a) Values are shown in medians (interquartile ranges)"
+
+```
+
+
+
+```{r}
+
+rndr <- function(x, name, ...) {
+    if (!is.numeric(x)) return(render.categorical.default(x))
+    what <- switch(name,
+        RIDAGEYR= "Mean (SD)",
+        BMXWT= "Mean (SD)",
+        BMXHT= "Mean (SD)",
+        BMXBMI= "Mean (SD)",
+        DXXNKBMD= "Mean (SD)",
+        DXXOFBMD= "Mean (SD)",
+        LSBMD= "Mean (SD)",
+        URXUMS= "Median [Min, Max]",
+        URXUCR= "Median [Min, Max]",
+        URDACT = "Median [Min, Max]")
+    parse.abbrev.render.code(c("", what))(x)
+}
+
+```
+
+```{r}
+table1(~ Gendercode+RIDAGEYR+BMXWT+BMXHT+BMXBMI+RIDRETH1+smoking+Hypertension+Diabetes+URXUMS+URXUCR+URDACT+DXXNKBMD+DXXOFBMD+LSBMD, data=df, 
+       overall = "Total",caption=caption, footnote=footnote,render=rndr )
+```
+
+```{r}
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=URDACT, y=DXXNKBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Femoral neck BMD (g/cm2)") + 
+  xlab("Albumin creatinine ratio a (mg/g)") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+
+```{r,echo=F, message=FALSE}
+
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=log(URDACT), y=DXXNKBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Femoral neck BMD (g/cm2)") + 
+  xlab("log (Albumin creatinine ratio a (mg/g))") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+```{r,echo=F, message=FALSE}
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=URDACT, y=DXXOFBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Total femur  BMD (g/cm2)") + 
+  xlab("Albumin creatinine ratio a (mg/g)") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+
+```{r,echo=F, message=FALSE}
+
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=log(URDACT), y=DXXOFBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Total femur  BMD (g/cm2)") + 
+  xlab("log (Albumin creatinine ratio a (mg/g))") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+```{r,echo=F, message=FALSE}
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=URDACT, y=LSBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Lumbar spine   BMD (g/cm2)") + 
+  xlab("Albumin creatinine ratio a (mg/g)") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+
+```{r,echo=F, message=FALSE}
+
+###  here's how you can make a scatterplot appear
+ggplot(df, aes(x=log(URDACT), y=LSBMD)) + 
+  geom_point(color ="blue") + 
+     ylab("Lumbar spine   BMD (g/cm2)") + 
+  xlab("log (Albumin creatinine ratio a (mg/g))") +
+theme_bw() +
+geom_smooth(aes(col = "Lowess smoother"), se=F, method = "loess", show.legend=T)+
+geom_smooth(aes(col = "Linear regression"), se=F, method = "lm", show.legend = T) +
+scale_color_manual(name = "",
+values = c("Lowess smoother"="blue","Linear regression"="grey")) 
+```
+
+
+```{r, warning=FALSE, message=FALSE,error=FALSE}
+### Reading in example data. 
+# Note: You will likely need to modify this command depending on your local file structure.
+df<- read_csv("C:\\Users\\kemalo\\Downloads\\ACR data.csv")
+
+```
+
+
+```{r,include=TRUE,warning=FALSE}
+#total femur
+fit1<-lm(DXXOFBMD~Gendercode+RIDAGEYR+Black+BMXBMI+Diabetes+Hypertension+log(URDACT), data=df)
+summary(fit1)
+confint(fit1)
+```
+
+```{r,include=TRUE,warning=FALSE}
+#Lumbar spine 
+fit2<-lm(LSBMD~Gendercode+RIDAGEYR+Black+BMXBMI+Diabetes+Hypertension+log(URDACT), data=df)
+summary(fit2)
+confint(fit2)
+```
+
+```{r,include=TRUE,warning=FALSE}
+#Femoral neck BMD 
+fit3<-lm(DXXNKBMD~Gendercode+RIDAGEYR+Black+BMXBMI+Diabetes+Hypertension+log(URDACT), data=df)
+summary(fit3)
+confint(fit3)
+```
+

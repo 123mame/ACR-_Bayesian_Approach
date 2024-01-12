@@ -1,0 +1,120 @@
+---
+title: "CSSS Final project"
+author: "Mohammed Bheser"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+  tufte::tufte_handout:
+    latex_engine: xelatex
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r, message=FALSE, warning=FALSE}
+#Load Library
+
+library(rethinking)
+library(rjags)
+library(rstan)
+library(cmdstanr)
+library(dplyr)
+library(tidyr)
+library(dagitty)
+library(tibble)
+library(ggplot2)
+library(brms)
+library(ggdag)
+library(bayesplot)
+```
+
+```{r}
+df <- read.csv("data/ACR data.csv")
+df
+```
+
+```{r}
+# Fit linear model= 
+fit <- lm(DXXOFBMD ~ RIAGENDR + RIDAGEYR , data = df)
+
+# Print model summary
+summary(fit)
+
+```
+
+```{r}
+jags.lm <- function(y, x, 
+                    mb = rep(0, ncol(x)), 
+                    sb = rep(10, ncol(x)), 
+                    lambda = 1, 
+                    n.iter = 1e4){
+  linear_model_code <- 
+    "data{
+    D <- dim(x) # get dimensions of X
+    n <- D[1] # number of rows (individuals)
+    p <- D[2] # number of colums (number of variables)
+  }
+  model{
+    # for individuals i=1..n
+    for(i in 1:n){
+      # likelihood
+      y[i] ~ dnorm(mu[i], tau) # JAGS uses precision
+      
+      # posterior predictive
+      ynew[i] ~ dnorm(mu[i], tau) 
+    }
+    # conditional mean using matrix algebra
+    mu <- x %*% beta
+    
+    # prior for beta
+    # for covariates j=1,..,p
+    for(j in 1:p){
+      beta[j] ~ dnorm(mb[j], pow(sb[j], -2)) # remember jags uses precision
+    }
+    # prior for tau (sigma)
+    sigma ~ dexp(lambda)
+    tau <- pow(sigma, -2)
+  }"
+  
+  cat("Compiling Model \n")
+  # fit model
+  model <- jags.model(file = textConnection(linear_model_code),
+                      data = list(x = x,
+                                  y = y,
+                                  mb = mb,
+                                  sb = sb, 
+                                  lambda = lambda))
+  cat("Sampling Betas\n")
+  # sample the betas
+  betas <- coda.samples(model = model, 
+                        variable.names = "beta",
+                        n.iter = n.iter)
+  # convert to data.frame
+  betas <- as.data.frame(betas[[1]])
+  
+  cat("Sampling Posterior Predictive\n")
+  # sample mu and ynew
+  preds <- jags.samples(model = model, 
+                        variable.names = c("mu", "ynew"),
+                        n.iter = n.iter)
+  
+  out <- list(y = y, x =x, betas = betas, preds = preds)
+  return(out)
+}
+```
+
+```{r}
+library(rethinking)
+data("milk")
+d <- milk
+y <- standardize(d$kcal.per.g)
+x <- model.matrix(~clade-1, data = d)
+
+model <- jags.lm(y, x)
+```
+
+```{r}
+d
+```
+
+\
