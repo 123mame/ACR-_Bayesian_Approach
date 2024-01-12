@@ -17,4 +17,5 @@ negatively associated with BMD at femoral neck and total femur and positively wi
 After adjusting for covariates, ACR was negatively associated with total femur, but with not femoral
 neck and lumbar spine BMD. We conclude that ACR was negatively associated with total femur BMD
 in the general US population. Future studies are warranted to confirm our results.
-Keywords: Bone mineral density, Urine Albumin to Creatinine Ratio, Osteoporosis
+
+**Keywords**: Bone mineral density, Urine Albumin to Creatinine Ratio, Osteoporosis
